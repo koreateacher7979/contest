@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학생 작품 제출</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: 둥글고 귀여운 폰트 적용 (Jua) -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --secondary: #EC4899;
+        }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #F8FAFC;
+            color: #334155;
+            overflow-x: hidden;
+        }
+        h1, h2, h3, .font-title {
+            font-family: 'Jua', sans-serif;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .fade-in { animation: fadeIn 0.4s ease-in forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Loading Spinner */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            cursor: pointer;
+        }
+        .file-upload-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg">
+                    <i class="fa-solid fa-palette text-xl"></i>
+                </div>
+                <h1 id="header-title" class="text-2xl text-slate-800 tracking-wide mt-1">작품 제출 갤러리</h1>
+            </div>
+            <div class="text-xs sm:text-sm text-slate-500 font-medium text-right bg-slate-100 px-3 py-1.5 rounded-full">
+                <i class="fa-solid fa-code mr-1 text-indigo-400"></i> 개발자: 가치있는 미래교육 연구소 대표 김병찬
+            </div>
+        </div>
+    </header>
+
+    <div id="global-loader" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+        <div class="spinner mb-4"></div>
+        <p id="loader-text" class="font-title text-xl text-indigo-600">데이터를 불러오는 중입니다...</p>
+    </div>
+
+    <div id="custom-modal" class="fixed inset-0 bg-slate-900/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 transform scale-95 transition-transform">
+            <div class="text-center">
+                <div id="modal-icon" class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                    <i class="fa-solid fa-check text-xl text-green-600"></i>
+                </div>
+                <h3 id="modal-title" class="text-lg leading-6 font-bold text-slate-900 mb-2 font-title text-2xl">알림</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p id="modal-message" class="text-sm text-slate-500 whitespace-pre-line"></p>
+                </div>
+                <div class="mt-4">
+                    <button onclick="closeModal()" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm transition">
+                        확인
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 추가된 부분 1: 작품 상세 보기 모달 -->
+    <div id="detail-modal" class="fixed inset-0 bg-slate-900/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden relative transform scale-95 transition-transform duration-300" id="detail-modal-content">
+            <!-- 닫기 버튼 -->
+            <button onclick="closeDetailModal()" class="absolute top-4 right-4 bg-white/80 hover:bg-white text-slate-800 rounded-full w-10 h-10 flex items-center justify-center backdrop-blur transition z-10 shadow-md">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <!-- 이미지 영역 (클릭 시 확대) -->
+            <div class="md:w-1/2 bg-slate-100 flex items-center justify-center relative cursor-zoom-in group" onclick="openZoomModal(document.getElementById('detail-image').src)">
+                <img id="detail-image" src="" class="w-full h-full max-h-[40vh] md:max-h-[90vh] object-contain p-4" alt="작품 이미지">
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                    <span class="bg-slate-800/70 text-white px-4 py-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm shadow-lg">
+                        <i class="fa-solid fa-magnifying-glass-plus mr-2"></i>클릭하여 확대
+                    </span>
+                </div>
+            </div>
+            
+            <!-- 내용 영역 -->
+            <div class="md:w-1/2 p-6 md:p-8 flex flex-col overflow-y-auto">
+                <div class="mb-4 border-b border-slate-100 pb-4">
+                    <span id="detail-badge" class="bg-indigo-100 text-indigo-800 text-sm px-3 py-1.5 rounded-xl font-bold inline-block mb-3"></span>
+                    <h3 id="detail-name" class="text-3xl font-title text-slate-800"></h3>
+                </div>
+                <div class="flex-grow">
+                    <h4 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2"><i class="fa-solid fa-pen-nib"></i> 작품 설명</h4>
+                    <!-- whitespace-pre-wrap으로 긴 글의 줄바꿈을 유지하며 전체를 보여줍니다 -->
+                    <p id="detail-desc" class="text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 p-5 rounded-2xl border border-slate-100 min-h-[150px]"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 추가된 부분 2: 이미지 꽉 찬 화면 확대 모달 -->
+    <div id="zoom-modal" class="fixed inset-0 bg-black/95 z-[70] hidden flex items-center justify-center p-4 transition-opacity cursor-zoom-out" onclick="closeZoomModal()">
+        <button class="absolute top-6 right-6 text-white/70 hover:text-white transition text-4xl">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <img id="zoom-image" src="" class="max-w-full max-h-full object-contain transform transition-transform duration-300 hover:scale-105" alt="확대된 이미지">
+    </div>
+
+    <main class="flex-grow w-full max-w-3xl mx-auto px-4 py-8 relative">
+        <!-- View 1: Student Submit Form -->
+        <section id="view-submit" class="fade-in">
+            <div class="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-500 px-6 py-8 text-center">
+                    <h2 class="text-3xl font-title text-white mb-2">🎨 나의 캐릭터 디자인 제출</h2>
+                    <p class="text-indigo-100 text-sm">작품 이미지와 정보를 정확하게 입력해 주세요!</p>
+                </div>
+                
+                <form id="submit-form" class="p-6 sm:p-8 space-y-6">
+                    <!-- Image Upload -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-slate-700">작품 이미지 업로드 <span class="text-red-500">*</span></label>
+                        <div class="flex items-center justify-center w-full">
+                            <label class="file-upload-wrapper flex flex-col items-center justify-center w-full h-64 border-2 border-slate-300 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
+                                <div id="image-preview-container" class="flex flex-col items-center justify-center pt-5 pb-6 text-slate-500 w-full h-full">
+                                    <i class="fa-regular fa-image text-4xl mb-3 text-slate-400"></i>
+                                    <p class="mb-2 text-sm font-semibold">클릭하여 이미지를 선택하세요</p>
+                                    <p class="text-xs text-slate-400">PNG, JPG, JPEG (최대 5MB 권장)</p>
+                                </div>
+                                <img id="image-preview" class="hidden w-full h-full object-contain p-2" />
+                                <input id="file-input" type="file" accept="image/*" required />
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Student Info Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="space-y-1">
+                            <label class="block text-sm font-bold text-slate-700">학년 <span class="text-red-500">*</span></label>
+                            <select id="input-grade" required class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                                <option value="">선택</option>
+                                <!-- JS로 옵션 채워짐 -->
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-sm font-bold text-slate-700">반 <span class="text-red-500">*</span></label>
+                            <input type="number" id="input-class" required min="1" max="99" class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" placeholder="예: 3">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-sm font-bold text-slate-700">번호 <span class="text-red-500">*</span></label>
+                            <input type="number" id="input-num" required min="1" max="99" class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" placeholder="예: 15">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-sm font-bold text-slate-700">이름 <span class="text-red-500">*</span></label>
+                            <input type="text" id="input-name" required class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" placeholder="이름 입력">
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-slate-700">작품 설명 <span class="text-red-500">*</span></label>
+                        <textarea id="input-desc" required rows="4" class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none" placeholder="캐릭터의 기획 의도, 특징, 성격 등을 자세히 적어주세요."></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-title text-xl py-4 rounded-xl shadow-lg transform transition hover:-translate-y-0.5 active:translate-y-0">
+                        <i class="fa-solid fa-paper-plane mr-2"></i> 내 작품 제출하기
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- View 2: Admin Login -->
+        <section id="view-admin-login" class="hidden fade-in max-w-md mx-auto mt-10">
+            <div class="bg-white rounded-3xl shadow-lg border border-slate-100 p-8 text-center">
+                <div class="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-lock text-2xl text-slate-600"></i>
+                </div>
+                <h2 class="text-2xl font-title text-slate-800 mb-6">관리자 모드</h2>
+                <form id="admin-login-form" class="space-y-4">
+                    <input type="password" id="admin-pw" required placeholder="비밀번호를 입력하세요" class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-500 text-center tracking-widest">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="switchView('submit')" class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition">취소</button>
+                        <button type="submit" class="w-2/3 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition">접속하기</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- View 3: Admin Dashboard (Full Width) -->
+    <section id="view-admin-dashboard" class="hidden fade-in w-full max-w-7xl mx-auto px-4 py-6">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            <div>
+                <h2 class="text-3xl font-title text-indigo-700 mb-1"><i class="fa-solid fa-gavel mr-2"></i>작품 심사 갤러리</h2>
+                <p class="text-slate-500 text-sm">제출된 모든 작품을 카테고리별로 확인하고 다운로드할 수 있습니다.</p>
+            </div>
+            <div class="mt-4 sm:mt-0 flex gap-3">
+                <button onclick="downloadAll()" class="bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-zipper"></i> 일괄 다운로드
+                </button>
+                <button onclick="logoutAdmin()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold transition">
+                    로그아웃
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="mb-6 flex flex-wrap gap-2 justify-center" id="filter-container">
+            <!-- JS로 필터 버튼 생성 -->
+        </div>
+
+        <!-- Gallery Grid -->
+        <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- JS로 작품 카드 생성 -->
+        </div>
+        
+        <div id="no-data-msg" class="hidden text-center py-20 text-slate-500">
+            <i class="fa-regular fa-folder-open text-5xl mb-4 text-slate-300"></i>
+            <p class="text-lg">해당 카테고리에 제출된 작품이 없습니다.</p>
+        </div>
+    </section>
+
+    <!-- Footer with clear admin trigger -->
+    <footer class="bg-white border-t border-slate-200 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 py-6 flex flex-col sm:flex-row justify-between items-center text-sm text-slate-500 gap-4 sm:gap-0">
+            <p>&copy; 2026 가치있는 미래교육 연구소. All rights reserved.</p>
+            <button onclick="switchView('admin-login')" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl transition font-bold shadow-md" title="관리자 로그인">
+                <i class="fa-solid fa-lock"></i> 교사 전용 관리자 모드
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        // =========================================================================
+        // [필수] 구글 앱스 스크립트 웹 앱 배포 후 생성된 URL을 아래에 반드시 입력하세요!
+        // =========================================================================
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwie6v_BGWOOinNUjs8SMebQwjLKj1aAncxwS5DJu9ZmEsEhO11DVzCmFRklvUqL50/exec'; 
+
+        // 전역 상태
+        let appConfig = { title: '작품 제출 갤러리', grades: [] };
+        let currentAdminData = [];
+        let currentFilter = '전체';
+        let adminPasswordSaved = '';
+
+        // DOM 요소
+        const loader = document.getElementById('global-loader');
+        const loaderText = document.getElementById('loader-text');
+        const viewSubmit = document.getElementById('view-submit');
+        const viewAdminLogin = document.getElementById('view-admin-login');
+        const viewAdminDashboard = document.getElementById('view-admin-dashboard');
+        const mainContainer = document.querySelector('main');
+        
+        // 이미지 미리보기 로직
+        const fileInput = document.getElementById('file-input');
+        const imagePreview = document.getElementById('image-preview');
+        const previewContainer = document.getElementById('image-preview-container');
+        let selectedFileBase64 = null;
+        let selectedFileName = null;
+        let selectedMimeType = null;
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // 크기 제한 체크 (약 10MB)
+                if(file.size > 10 * 1024 * 1024) {
+                    showModal('용량 초과', '이미지 파일 크기가 너무 큽니다. 10MB 이하로 업로드해주세요.', true);
+                    fileInput.value = '';
+                    return;
+                }
+
+                selectedFileName = file.name;
+                selectedMimeType = file.type;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                    previewContainer.classList.add('hidden');
+                    // Base64 문자열만 추출 (data:image/png;base64, 이후 부분)
+                    selectedFileBase64 = e.target.result.split(',')[1];
+                }
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.src = '';
+                imagePreview.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+                selectedFileBase64 = null;
+            }
+        });
+
+        // 초기 설정 불러오기
+        async function initApp() {
+            if(WEB_APP_URL === 'YOUR_WEB_APP_URL_HERE') {
+                showModal('설정 오류', '웹 앱 URL이 설정되지 않았습니다. HTML 소스코드를 확인해주세요.', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${WEB_APP_URL}?action=getConfig`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    appConfig.title = result.title;
+                    appConfig.grades = result.grades;
+                    
+                    // UI 업데이트
+                    document.title = appConfig.title;
+                    document.getElementById('header-title').innerText = appConfig.title;
+                    
+                    // 드롭다운 채우기
+                    const gradeSelect = document.getElementById('input-grade');
+                    appConfig.grades.forEach(grade => {
+                        const option = document.createElement('option');
+                        option.value = grade;
+                        option.textContent = grade;
+                        gradeSelect.appendChild(option);
+                    });
+                    
+                    loader.style.display = 'none';
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                loader.style.display = 'none';
+                showModal('오류', '초기 설정을 불러오는 데 실패했습니다.\n네트워크 상태나 URL을 확인해주세요.', true);
+            }
+        }
+
+        // 화면 전환 함수
+        function switchView(viewName) {
+            viewSubmit.classList.add('hidden');
+            viewAdminLogin.classList.add('hidden');
+            viewAdminDashboard.classList.add('hidden');
+            
+            if (viewName === 'submit') {
+                viewSubmit.classList.remove('hidden');
+                mainContainer.style.display = 'block';
+            } else if (viewName === 'admin-login') {
+                viewAdminLogin.classList.remove('hidden');
+                mainContainer.style.display = 'block';
+            } else if (viewName === 'admin-dashboard') {
+                viewAdminDashboard.classList.remove('hidden');
+                mainContainer.style.display = 'none'; // Dashboard has its own width logic
+            }
+        }
+
+        // 모달 제어 함수
+        function showModal(title, message, isError = false) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            
+            const icon = document.getElementById('modal-icon');
+            if(isError) {
+                icon.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4';
+                icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-xl text-red-600"></i>';
+            } else {
+                icon.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4';
+                icon.innerHTML = '<i class="fa-solid fa-check text-xl text-green-600"></i>';
+            }
+            
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        // 작품 제출 폼 서밋
+        document.getElementById('submit-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if(!selectedFileBase64) {
+                showModal('알림', '작품 이미지를 업로드해주세요.', true);
+                return;
+            }
+
+            const payload = {
+                action: 'submit',
+                grade: document.getElementById('input-grade').value,
+                classNum: document.getElementById('input-class').value,
+                studentNum: document.getElementById('input-num').value,
+                name: document.getElementById('input-name').value,
+                description: document.getElementById('input-desc').value,
+                fileBase64: selectedFileBase64,
+                fileName: selectedFileName,
+                mimeType: selectedMimeType
+            };
+
+            showLoader('작품을 안전하게 제출하는 중입니다...');
+
+            try {
+                // GAS POST 요청 시 CORS 회피를 위해 text/plain 사용
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                hideLoader();
+                
+                if(result.success) {
+                    showModal('제출 완료!', '작품이 성공적으로 제출되었습니다. 수고하셨습니다!');
+                    // 폼 초기화
+                    this.reset();
+                    fileInput.dispatchEvent(new Event('change')); // 미리보기 초기화
+                } else {
+                    showModal('오류', '제출 중 문제가 발생했습니다: ' + result.message, true);
+                }
+            } catch (error) {
+                hideLoader();
+                showModal('네트워크 오류', '서버와 통신할 수 없습니다. 다시 시도해주세요.', true);
+            }
+        });
+
+        // 관리자 로그인 폼 서밋
+        document.getElementById('admin-login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const pw = document.getElementById('admin-pw').value;
+            
+            showLoader('데이터를 동기화 중입니다...');
+            
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'getAdminData', password: pw })
+                });
+                
+                const result = await response.json();
+                hideLoader();
+                
+                if(result.success) {
+                    adminPasswordSaved = pw;
+                    currentAdminData = result.data;
+                    document.getElementById('admin-pw').value = '';
+                    buildAdminDashboard();
+                    switchView('admin-dashboard');
+                } else {
+                    showModal('인증 실패', result.message, true);
+                }
+            } catch (error) {
+                hideLoader();
+                showModal('오류', '관리자 인증 중 문제가 발생했습니다.', true);
+            }
+        });
+
+        // 관리자 대시보드 렌더링
+        function buildAdminDashboard() {
+            // 필터 버튼 생성
+            const filterContainer = document.getElementById('filter-container');
+            filterContainer.innerHTML = '';
+            
+            const filters = ['전체', ...appConfig.grades];
+            filters.forEach(grade => {
+                const btn = document.createElement('button');
+                btn.innerText = grade;
+                btn.className = `px-5 py-2 rounded-full font-bold text-sm transition ${currentFilter === grade ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-indigo-50 border border-slate-200'}`;
+                btn.onclick = () => {
+                    currentFilter = grade;
+                    buildAdminDashboard(); // 리렌더링
+                };
+                filterContainer.appendChild(btn);
+            });
+
+            // 갤러리 렌더링
+            const grid = document.getElementById('gallery-grid');
+            grid.innerHTML = '';
+            
+            const filteredData = currentFilter === '전체' 
+                ? currentAdminData 
+                : currentAdminData.filter(item => item.grade === currentFilter);
+
+            if (filteredData.length === 0) {
+                document.getElementById('no-data-msg').classList.remove('hidden');
+            } else {
+                document.getElementById('no-data-msg').classList.add('hidden');
+                
+                // 최신순 정렬 (ID 역순)
+                filteredData.reverse().forEach(item => {
+                    const card = document.createElement('div');
+                    // 🌟 수정된 부분: 카드 전체가 클릭 가능하도록 이벤트 추가 및 마우스 호버 효과 강화
+                    card.className = 'bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl transition duration-300 flex flex-col h-full cursor-pointer transform hover:-translate-y-1';
+                    card.onclick = () => openDetailModal(item.id);
+                    
+                    card.innerHTML = `
+                        <div class="h-56 w-full bg-slate-100 relative group overflow-hidden">
+                            <img src="${item.imageUrl}" alt="${item.name}의 작품" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" onerror="this.src='https://placehold.co/400x300/e2e8f0/475569?text=Image+Load+Error'">
+                            <div class="absolute inset-0 bg-indigo-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300 backdrop-blur-[2px]">
+                                <span class="bg-white text-indigo-700 font-bold px-4 py-2 rounded-full shadow-lg">
+                                    <i class="fa-regular fa-folder-open mr-2"></i>자세히 보기
+                                </span>
+                            </div>
+                        </div>
+                        <div class="p-5 flex flex-col flex-grow">
+                            <div class="flex justify-between items-start mb-3">
+                                <h3 class="font-bold text-xl text-slate-800 font-title">${item.name}</h3>
+                                <span class="bg-indigo-50 text-indigo-600 text-xs px-2.5 py-1 rounded-lg font-bold border border-indigo-100">
+                                    ${item.grade} ${item.classNum}반 ${item.studentNum}번
+                                </span>
+                            </div>
+                            <!-- 갤러리 화면에서는 3줄만 보이게 유지합니다 -->
+                            <p class="text-sm text-slate-600 line-clamp-3 mb-4 flex-grow leading-relaxed">${item.description.replace(/\n/g, '<br>')}</p>
+                            <div class="text-xs text-slate-400 text-right font-medium">No. ${item.id}</div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        // 일괄 다운로드 (ZIP)
+        async function downloadAll() {
+            showLoader('서버에서 압축 파일을 생성 중입니다.\n이미지 개수에 따라 최대 수 분이 소요될 수 있습니다...');
+            
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'createZip', password: adminPasswordSaved })
+                });
+                
+                const result = await response.json();
+                hideLoader();
+                
+                if(result.success) {
+                    showModal('다운로드 준비 완료', '확인 버튼을 누르면 다운로드가 시작됩니다.');
+                    window.open(result.url, '_blank');
+                } else {
+                    showModal('오류', result.message, true);
+                }
+            } catch (error) {
+                hideLoader();
+                showModal('오류', '다운로드 요청 중 문제가 발생했습니다.', true);
+            }
+        }
+
+        // 로그아웃
+        function logoutAdmin() {
+            adminPasswordSaved = '';
+            currentAdminData = [];
+            currentFilter = '전체';
+            switchView('submit');
+        }
+
+        // 로더 제어
+        function showLoader(text) {
+            loaderText.innerText = text || '데이터를 불러오는 중입니다...';
+            loader.style.display = 'flex';
+        }
+        function hideLoader() {
+            loader.style.display = 'none';
+        }
+
+        // 🌟 추가된 부분 3: 작품 상세 모달 및 확대 제어 함수들
+        function openDetailModal(id) {
+            const item = currentAdminData.find(d => d.id === id);
+            if(!item) return;
+
+            document.getElementById('detail-image').src = item.imageUrl;
+            document.getElementById('detail-name').innerText = item.name;
+            document.getElementById('detail-badge').innerText = `${item.grade} ${item.classNum}반 ${item.studentNum}번`;
+            // innerText로 넣고 CSS(whitespace-pre-wrap)로 줄바꿈을 유지합니다.
+            document.getElementById('detail-desc').innerText = item.description;
+
+            const modal = document.getElementById('detail-modal');
+            const modalContent = document.getElementById('detail-modal-content');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('detail-modal');
+            const modalContent = document.getElementById('detail-modal-content');
+            
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('detail-image').src = ''; // 리소스 정리
+            }, 300);
+        }
+
+        function openZoomModal(src) {
+            document.getElementById('zoom-image').src = src;
+            document.getElementById('zoom-modal').classList.remove('hidden');
+        }
+
+        function closeZoomModal() {
+            document.getElementById('zoom-modal').classList.add('hidden');
+            setTimeout(() => {
+                document.getElementById('zoom-image').src = '';
+            }, 300);
+        }
+
+        // 앱 시작
+        window.onload = () => {
+            initApp();
+        };
+    </script>
+</body>
+</html>
